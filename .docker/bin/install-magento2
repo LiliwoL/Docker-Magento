@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+if [ $@ ]; then
+  composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition:$1 . ;
+else
+  composer create-project --repository-url=https://repo.magento.com/ magento/project-community-edition . ;
+fi
+chmod 777 -R ./* && chmod 777 -R ./.*
+chmod u+w -R ./var ./vendor ./pub/static ./pub/media ./app/etc \
+&& chmod u+x ./bin/magento \
+&& php -f ./bin/magento setup:install --base-url=http://localhost/ \
+    --db-host=db \
+    --db-name=magento \
+    --db-user=root \
+    --db-password=root \
+    --admin-firstname=Magento \
+    --admin-lastname=Commerce \
+    --admin-email=user@example.com \
+    --admin-user=admin \
+    --admin-password=Admin123 \
+    --language=en_US \
+    --currency=USD \
+    --timezone=America/Chicago \
+    --use-rewrites=1 \
+    --backend-frontname=admin \
+    --elasticsearch-host=elasticsearch;
+
+cp ~/.composer/auth.json var/composer_home/auth.json \
+&& php -f ./bin/magento setup:upgrade \
+&& php -f ./bin/magento setup:di:compile \
+&& php -f ./bin/magento deploy:mode:set developer \
+&& php -f ./bin/magento setup:static-content:deploy -f\
+&& php -f ./bin/magento indexer:reindex \
+&& php -f ./bin/magento cache:clean \
+&& php -f ./bin/magento cache:flush;
+mv package.json.sample package.json ; mv Gruntfile.js.sample Gruntfile.js;
+npm i;
+composer dump-autoload -o \
+&& clear && echo "Magento was installed: Yes."

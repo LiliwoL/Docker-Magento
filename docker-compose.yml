@@ -1,0 +1,100 @@
+version: '3.1'
+services:
+  apache:
+    build:
+      context: .
+      dockerfile: build/apache/php-7.4/Dockerfile
+    container_name: magento_web
+    ports:
+      - '80:80'
+      - '9001:9000'
+    volumes:
+      - './src:/var/www/html'
+      - './log:/var/log'
+      - '~/.composer/cache:/var/www/.composer/cache'
+      - '~/.npm:/var/www/.npm'
+    environment:
+      XDEBUG_CONFIG: remote_host=localhost
+      PHP_IDE_CONFIG: serverName=Docker
+    depends_on:
+      - db
+    links:
+      - db
+    networks:
+      - -network
+
+  db:
+    image: 'mariadb:10.4'
+    container_name: magento_db
+    ports:
+      - '3300:3306'
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MARIADB_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=magento
+      - MARIADB_DATABASE=magento
+      - MYSQL_USER=admin
+      - MARIADB_USER=admin
+      - MYSQL_PASSWORD=admin123
+      - MARIADB_PASSWORD=admin123
+    volumes:
+      - './dbdata:/var/lib/mysql'
+      - './backups:/var/tmp/backups'
+    networks:
+      - -network
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - '8080:8080'
+    networks:
+      - -network
+  redis:
+    image: redis
+    container_name: magento_redis
+    ports:
+      - 6379
+    networks:
+      - -network
+  redis-session:
+    image: redis
+    ports:
+      - 6379
+    networks:
+      - -network
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    networks:
+      - -network
+
+  elasticsearch:
+    build:
+      context: .
+      dockerfile: build/elasticsearch/Dockerfile
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - node.name=node-1
+      - cluster.initial_master_nodes=node-1
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - './elasticsearchdata:/usr/share/elasticsearch/data'
+    ports:
+      - '9200:9200'
+    networks:
+      - -network
+
+
+networks:
+  -network:
+    driver: bridge
+volumes:
+  dbdata:
+    driver: local
